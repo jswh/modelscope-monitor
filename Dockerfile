@@ -17,4 +17,5 @@ WORKDIR /app
 
 EXPOSE 3000 8000
 
-CMD ["npm", "start"]
+# 使用脚本同时启动前后端服务
+CMD ["sh", "-c", "cd frontend && npm run preview & cd ../backend && npm start"]
