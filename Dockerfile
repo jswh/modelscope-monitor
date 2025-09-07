@@ -1,46 +1,48 @@
-# 多阶段构建
-FROM node:18-alpine AS builder
+FROM node:18-alpine AS frontend-builder
 
-WORKDIR /app
+WORKDIR /app/frontend
 
-# 只复制必要的文件，排除 Caddyfile
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm install
 
-# 复制项目文件
-COPY backend/ ./backend/
-COPY frontend/ ./frontend/
-COPY frontend/vite.config.js ./frontend/
-COPY frontend/index.html ./frontend/
+COPY frontend/ ./
+RUN npm run build
+
+FROM node:18-alpine AS backend-builder
 
 WORKDIR /app/backend
+
+COPY backend/package*.json ./
 RUN npm install
 
-WORKDIR /app/frontend  
-RUN npm install && npm run build
+COPY backend/ ./
 
-# 最终镜像
 FROM caddy:alpine
 
-# 安装必要的工具
-RUN apk add --no-cache curl nodejs npm
+# 安装 Node.js 和 curl
+RUN apk add --no-cache nodejs npm curl
 
-# 从构建阶段复制文件
-COPY --from=builder /app/backend /app/backend
-COPY --from=builder /app/frontend/dist /var/www/html
+# 复制前端构建结果
+COPY --from=frontend-builder /app/frontend/dist /var/www/html
 
-# 在最终阶段复制 Caddyfile（从构建上下文）
+# 复制后端代码
+COPY --from=backend-builder /app/backend /app/backend
+
+# 复制根目录的 package.json（用于启动脚本）
+COPY package*.json /app/
+
+# 复制 Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
 
-# 安装后端依赖
-WORKDIR /app/backend
-RUN npm install
-
 # 创建数据目录
-RUN mkdir -p /app/backend/data
+RUN mkdir -p /app/backend/data && \
+    chown -R node:node /app
+
+# 切换到 app 目录
+WORKDIR /app
 
 # 暴露端口
 EXPOSE 80
 
-# 启动 Caddy 和后端服务
+# 启动脚本
 CMD ["sh", "-c", "cd /app/backend && npm start & caddy run --config /etc/caddy/Caddyfile"]
