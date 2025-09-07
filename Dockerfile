@@ -37,7 +37,7 @@ COPY --from=backend-builder /app/backend/package*.json /app/backend/
 COPY package*.json /app/
 
 # 复制 Caddyfile 模板
-COPY Caddyfile.template /etc/caddy/Caddyfile.template
+COPY Caddyfile /etc/caddy/Caddyfile
 
 # 复制启动脚本
 COPY start.sh /app/start.sh
