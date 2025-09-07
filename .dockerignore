@@ -13,3 +13,4 @@ coverage
 .idea
 backend/data/*.db
 backend/data/*.db-journal
+Caddyfile

@@ -1,0 +1,25 @@
+{
+  admin :2019
+  log {
+    output file /var/log/caddy/access.log
+  }
+}
+
+http://:80 {
+  # API 请求代理到后端
+  handle /api/* {
+    reverse_proxy localhost:8000
+  }
+
+  # 静态文件服务
+  handle {
+    root * /var/www/html
+    file_server
+    try_files {path} {path}/ /index.html
+  }
+}
+
+https://:443 {
+  # 自动重定向到 HTTP（如果不需要 HTTPS）
+  redir http://{host}{uri}
+}
