@@ -1,0 +1,33 @@
+{
+  admin :2019
+  log {
+    output file /var/log/caddy/access.log
+  }
+}
+
+# 监听所有接口的 HTTP 请求
+http:// {
+  # 基本认证（通过环境变量控制）
+  basic_auth {
+    # 通过环境变量启用认证
+    allowenv ENABLE_AUTH
+    # 认证信息，从环境变量读取
+    username {$AUTH_USERNAME:admin}
+    # 密码占位符，启动时会被替换
+    password $AUTH_PASSWORD_PLACEHOLDER
+    # 指定哈希算法
+    hash bcrypt
+  }
+
+  # API 请求代理到后端
+  handle /api/* {
+    reverse_proxy localhost:8000
+  }
+
+  # 静态文件服务
+  handle {
+    root * /var/www/html
+    file_server
+    try_files {path} {path}/ /index.html
+  }
+}

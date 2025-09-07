@@ -36,8 +36,11 @@ COPY --from=backend-builder /app/backend/package*.json /app/backend/
 # 复制根目录的 package.json（用于启动脚本）
 COPY package*.json /app/
 
-# 复制 Caddyfile
-COPY Caddyfile /etc/caddy/Caddyfile
+# 复制 Caddyfile 模板
+COPY Caddyfile.template /etc/caddy/Caddyfile.template
+
+# 复制启动脚本
+COPY start.sh /app/start.sh
 
 # 在 Alpine 中重新安装后端依赖（构建原生模块）
 WORKDIR /app/backend
@@ -53,15 +56,4 @@ WORKDIR /app
 EXPOSE 80
 
 # 启动脚本
-CMD ["sh", "-c", "echo '=== Environment Variables ===' && \
-    echo 'ENABLE_AUTH: '$ENABLE_AUTH && \
-    echo 'AUTH_USERNAME: '$AUTH_USERNAME && \
-    echo 'AUTH_PASSWORD: '$AUTH_PASSWORD && \
-    echo '' && \
-    echo '=== Caddyfile Content ===' && \
-    cat /etc/caddy/Caddyfile && \
-    echo '' && \
-    echo '=== Starting Services ===' && \
-    cd /app/backend && npm start & \
-    caddy run --config /etc/caddy/Caddyfile && \
-    wait"]
+CMD ["/app/start.sh"]
