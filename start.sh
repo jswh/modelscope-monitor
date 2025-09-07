@@ -14,7 +14,9 @@ if [ "$ENABLE_AUTH" = "true" ]; then
     echo "=== Generating Caddyfile with authentication ==="
     
     # 创建临时 Caddyfile
-    sed "s/\$AUTH_PASSWORD:admin\}/\$AUTH_PASSWORD:${AUTH_PASSWORD:-admin}/g" /etc/caddy/Caddyfile.template > /etc/caddy/Caddyfile
+    sed "s/allowenv ENABLE_AUTH/allowenv ${ENABLE_AUTH}/g" /etc/caddy/Caddyfile.template | \
+    sed "s/username AUTH_USERNAME/username ${AUTH_USERNAME}/g" | \
+    sed "s/password AUTH_PASSWORD/password ${AUTH_PASSWORD}/g" > /etc/caddy/Caddyfile
     
     echo "Caddyfile updated with basic authentication"
 else
