@@ -82,6 +82,22 @@ ports:
   - "8000:8000"   # Backend API remains accessible
 ```
 
+**Basic Authentication (Optional):**
+To password-protect the frontend, enable authentication in docker-compose.yml:
+```yaml
+environment:
+  - ENABLE_AUTH=true        # Enable Basic Authentication
+  - AUTH_USERNAME=myuser   # Set username (default: admin)
+  - AUTH_PASSWORD=mypassword # Set password (default: password)
+```
+
+Then access the application with:
+- URL: http://localhost:43000
+- Username: myuser
+- Password: mypassword
+
+If authentication is not enabled (default), the app is accessible without login.
+
 #### GitHub Container Registry (GHCR)
 
 The Docker image is automatically built and pushed to GHCR on every push to the main branch.
