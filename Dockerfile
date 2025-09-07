@@ -62,4 +62,6 @@ CMD ["sh", "-c", "echo '=== Environment Variables ===' && \
     cat /etc/caddy/Caddyfile && \
     echo '' && \
     echo '=== Starting Services ===' && \
-    cd /app/backend && npm start & caddy run --config /etc/caddy/Caddyfile"]
+    cd /app/backend && npm start & \
+    caddy run --config /etc/caddy/Caddyfile && \
+    wait"]
