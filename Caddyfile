@@ -8,14 +8,12 @@
 # 监听所有接口的 HTTP 请求
 http:// {
   # 基本认证（通过环境变量控制）
-  basicauth {
+  basic_auth {
     # 通过环境变量启用认证
     allowenv ENABLE_AUTH
     # 认证信息，从环境变量读取
     username {$AUTH_USERNAME:admin}
     password {$AUTH_PASSWORD:admin}
-    # 哈希算法
-    hash bcrypt
   }
 
   # API 请求代理到后端
