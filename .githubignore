@@ -1,0 +1,41 @@
+# GitHub Actions ignore file
+
+# Ignore node_modules
+node_modules/
+**/node_modules/
+
+# Ignore build artifacts
+dist/
+build/
+*.log
+
+# Ignore environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore database files
+*.db
+*.db-journal
+backend/data/
+
+# Ignore coverage reports
+coverage/
+.nyc_output/
+
+# Ignore temporary files
+tmp/
+temp/
