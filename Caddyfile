@@ -7,8 +7,12 @@
 
 # 监听所有接口的 HTTP 请求
 http:// {
-  # 基本认证（通过环境变量控制）
-  basicauth / {$AUTH_USERNAME} {$AUTH_PASSWORD}
+  # 基本认证（使用正确的 basic_auth 指令）
+  basic_auth {
+    # 使用 bcrypt 哈希的密码
+    # 用户名 "jswh"，密码哈希值来自环境变量
+    {$AUTH_USERNAME} {$AUTH_PASSWORD}
+  }
 
   # API 请求代理到后端
   handle /api/* {
