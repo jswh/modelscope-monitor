@@ -53,4 +53,13 @@ WORKDIR /app
 EXPOSE 80
 
 # 启动脚本
-CMD ["sh", "-c", "cd /app/backend && npm start & caddy run --config /etc/caddy/Caddyfile"]
+CMD ["sh", "-c", "echo '=== Environment Variables ===' && \
+    echo 'ENABLE_AUTH: '$ENABLE_AUTH && \
+    echo 'AUTH_USERNAME: '$AUTH_USERNAME && \
+    echo 'AUTH_PASSWORD: '$AUTH_PASSWORD && \
+    echo '' && \
+    echo '=== Caddyfile Content ===' && \
+    cat /etc/caddy/Caddyfile && \
+    echo '' && \
+    echo '=== Starting Services ===' && \
+    cd /app/backend && npm start & caddy run --config /etc/caddy/Caddyfile"]
