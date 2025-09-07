@@ -71,8 +71,16 @@ docker-compose up -d
 ```
 
 3. Access the application:
-- Frontend: http://localhost:3000
+- Frontend: http://localhost (default port 80)
 - Backend API: http://localhost:8000
+
+**Custom Port Mapping:**
+If you want to use a different port, modify docker-compose.yml:
+```yaml
+ports:
+  - "43000:80"     # Access frontend at http://localhost:43000
+  - "8000:8000"   # Backend API remains accessible
+```
 
 #### GitHub Container Registry (GHCR)
 

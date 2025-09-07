@@ -4,8 +4,8 @@ services:
   modelscope-monitor:
     build: .
     ports:
-      - "80:80"
-      - "8000:8000"
+      - "80:80"        # 可以修改为 "43000:80" 来使用自定义端口
+      - "8000:8000"    # 后端 API 端口
     volumes:
       - ./backend/data:/app/backend/data
     environment:

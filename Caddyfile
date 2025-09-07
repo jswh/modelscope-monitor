@@ -5,7 +5,8 @@
   }
 }
 
-http://:80 {
+# 监听所有接口的 HTTP 请求
+http:// {
   # API 请求代理到后端
   handle /api/* {
     reverse_proxy localhost:8000
@@ -17,9 +18,4 @@ http://:80 {
     file_server
     try_files {path} {path}/ /index.html
   }
-}
-
-https://:443 {
-  # 自动重定向到 HTTP（如果不需要 HTTPS）
-  redir http://{host}{uri}
 }
