@@ -31,6 +31,7 @@ COPY --from=frontend-builder /app/frontend/dist /var/www/html
 
 # 复制后端源代码（不是 node_modules）
 COPY --from=backend-builder /app/backend/src /app/backend/src
+COPY --from=backend-builder /app/backend/migrations /app/backend/migrations
 COPY --from=backend-builder /app/backend/package*.json /app/backend/
 
 # 复制根目录的 package.json（用于启动脚本）
