@@ -34,6 +34,10 @@ app.post('/api/accounts', async (req, res) => {
     const account = await db.addAccount(name, cookies);
     
     if (testResult.valid && testResult.data.success) {
+      // 如果API调用返回了更新后的cookies，更新到数据库
+      if (testResult.data.updatedCookies && testResult.data.updatedCookies !== cookies) {
+        await db.updateAccount(account.id, testResult.data.updatedCookies);
+      }
       await db.addUsageData(account.id, testResult.data);
     }
 
@@ -73,7 +77,20 @@ app.put('/api/accounts/:id', async (req, res) => {
       return res.status(400).json({ error: testResult.message });
     }
 
-    await db.updateAccount(id, cookies);
+    // 先测试原始cookies
+    const testResult = await modelscopeAPI.testCookies(cookies);
+    
+    if (!testResult.valid) {
+      return res.status(400).json({ error: testResult.message });
+    }
+
+    // 如果API调用成功且返回了更新后的cookies，使用更新后的cookies
+    let finalCookies = cookies;
+    if (testResult.valid && testResult.data.success && testResult.data.updatedCookies && testResult.data.updatedCookies !== cookies) {
+      finalCookies = testResult.data.updatedCookies;
+    }
+    
+    await db.updateAccount(id, finalCookies);
     
     if (testResult.valid && testResult.data.success) {
       await db.addUsageData(id, testResult.data);
@@ -139,9 +156,17 @@ app.post('/api/accounts/:id/refresh', async (req, res) => {
     const result = await modelscopeAPI.getRateLimit(account.cookies);
     
     if (result.success) {
+      // 如果API调用返回了更新后的cookies，更新到数据库
+      if (result.updatedCookies && result.updatedCookies !== account.cookies) {
+        await db.updateAccount(id, result.updatedCookies);
+      }
       await db.addUsageData(id, result);
       res.json({ success: true, data: result });
     } else {
+      // 即使出错，如果有更新后的cookies也要更新数据库
+      if (result.updatedCookies && result.updatedCookies !== account.cookies) {
+        await db.updateAccount(id, result.updatedCookies);
+      }
       res.status(400).json({ success: false, error: result.error });
     }
   } catch (error) {
@@ -165,9 +190,19 @@ cron.schedule('*/5 * * * *', async () => {
         const result = await modelscopeAPI.getRateLimit(account.cookies);
         
         if (result.success) {
+          // 如果API调用返回了更新后的cookies，更新到数据库
+          if (result.updatedCookies && result.updatedCookies !== account.cookies) {
+            await db.updateAccount(account.id, result.updatedCookies);
+            console.log(`Updated cookies for account: ${account.name}`);
+          }
           await db.addUsageData(account.id, result);
           console.log(`Updated usage data for account: ${account.name}`);
         } else {
+          // 即使出错，如果有更新后的cookies也要更新数据库
+          if (result.updatedCookies && result.updatedCookies !== account.cookies) {
+            await db.updateAccount(account.id, result.updatedCookies);
+            console.log(`Updated cookies for account (with error): ${account.name}`);
+          }
           console.error(`Failed to update usage data for account ${account.name}: ${result.error}`);
         }
       } catch (error) {

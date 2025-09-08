@@ -62,17 +62,28 @@ class ModelScopeAPI {
         timeout: 10000
       });
 
+      // 从响应中提取新的cookies
+      const updatedCookies = this.extractUpdatedCookies(cookies, response);
+
       return {
         success: true,
         data: response.data,
+        updatedCookies: updatedCookies,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
       console.error('Error fetching rate limit:', error.message);
       
+      // 即使出错也要检查是否有cookie更新
+      let updatedCookies = cookies;
+      if (error.response && error.response.headers['set-cookie']) {
+        updatedCookies = this.extractUpdatedCookies(cookies, error.response);
+      }
+      
       let errorDetails = {
         success: false,
         error: error.message,
+        updatedCookies: updatedCookies,
         timestamp: new Date().toISOString()
       };
 
@@ -100,8 +111,38 @@ class ModelScopeAPI {
     return {
       valid: result.success,
       data: result,
+      updatedCookies: result.updatedCookies,
       message: result.success ? 'Cookies are valid' : result.error
     };
+  }
+
+  extractUpdatedCookies(currentCookies, response) {
+    const setCookieHeader = response.headers['set-cookie'];
+    if (!setCookieHeader) {
+      return currentCookies;
+    }
+
+    // 处理单个或多个Set-Cookie头
+    const newCookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    
+    // 解析现有cookies
+    const existingCookies = currentCookies ? this.parseCookieString(currentCookies) : {};
+    
+    // 更新或添加新cookie
+    for (const newCookie of newCookies) {
+      // 提取cookie名称和值（忽略属性如expires、path等）
+      const cookieParts = newCookie.split(';')[0].trim();
+      const [name, value] = cookieParts.split('=');
+      
+      if (name && value) {
+        existingCookies[name.trim()] = value.trim();
+      }
+    }
+    
+    // 重新构建cookie字符串
+    return Object.entries(existingCookies)
+      .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
+      .join('; ');
   }
 
   validateCookies(cookies) {

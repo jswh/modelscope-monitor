@@ -1,156 +1,82 @@
-# ModelScope API Monitor
+# ModelScope Usage Monitor
 
-A monitoring service for ModelScope API usage with web dashboard.
+一个简单实用的 ModelScope API 使用监控工具。
 
-## Features
+## 核心特性
 
-- Add multiple ModelScope accounts
-- Monitor API rate limits and usage
-- Real-time data updates
-- Automatic data collection every 5 minutes
-- Simple web dashboard
+- ✅ 多账户管理
+- ✅ 实时使用量监控  
+- ✅ 自动数据更新（每5分钟）
+- ✅ 简洁的Web仪表板
+- ✅ Docker一键部署
 
-## Installation
+## 快速开始
 
-1. Install dependencies:
+### Docker部署（推荐）
+
 ```bash
+# 拉取镜像
+docker pull ghcr.io/jswh/modelscope-monitor:latest
+
+# 运行容器
+docker run -d \
+  --name modelscope-monitor \
+  -p 80:80 \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/backend/data \
+  ghcr.io/jswh/modelscope-monitor:latest
+```
+
+**自定义端口：**
+```bash
+docker run -d \
+  --name modelscope-monitor \
+  -p 43000:80 \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/backend/data \
+  ghcr.io/jswh/modelscope-monitor:latest
+```
+
+**启用密码保护：**
+```bash
+docker run -d \
+  --name modelscope-monitor \
+  -p 80:80 \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/backend/data \
+  -e ENABLE_AUTH=true \
+  -e AUTH_USERNAME=myuser \
+  -e AUTH_PASSWORD=bcrypt_password \
+  ghcr.io/jswh/modelscope-monitor:latest
+```
+注意：密码必须是bcrypt加密后的字符串，可以使用generate-hash.sh脚本生成。
+
+### 本地开发
+
+```bash
+# 安装依赖
 npm install
-```
-
-2. Install backend dependencies:
-```bash
 cd backend && npm install
-```
+cd ../frontend && npm install
 
-3. Install frontend dependencies:
-```bash
-cd frontend && npm install
-```
-
-## Usage
-
-### Development Mode
-
-Run both backend and frontend:
-```bash
+# 启动开发服务器
 npm run dev
 ```
 
-Or run separately:
+- 前端：http://localhost:3000
+- 后端API：http://localhost:8000
 
-Backend (port 8000):
-```bash
-npm run dev:backend
-```
+## 如何添加账户
 
-Frontend (port 3000):
-```bash
-npm run dev:frontend
-```
+1. 登录 [ModelScope](https://modelscope.cn)
+2. 打开浏览器开发者工具（F12）
+3. 切换到 Network 标签页
+4. 点击页面右上角头像，触发身份验证请求
+5. 找到 `https://modelscope.cn/api/v1/inference/rate-limit` 这个请求
+6. 右键点击该请求 → Copy → Copy as cURL
+7. 从cURL命令中提取 Cookie 部分
+8. 在Web界面中粘贴Cookie并添加账户
 
-### Production Mode
+## 许可证
 
-Build and start:
-```bash
-npm run build
-npm start
-```
-
-### Docker Deployment
-
-#### Local Docker
-
-1. Build the image:
-```bash
-docker build -t modelscope-monitor .
-```
-
-2. Run with docker-compose:
-```bash
-docker-compose up -d
-```
-
-3. Access the application:
-- Frontend: http://localhost (default port 80)
-- Backend API: http://localhost:8000
-
-**Custom Port Mapping:**
-If you want to use a different port, modify docker-compose.yml:
-```yaml
-ports:
-  - "43000:80"     # Access frontend at http://localhost:43000
-  - "8000:8000"   # Backend API remains accessible
-```
-
-**Basic Authentication (Optional):**
-To password-protect the frontend, enable authentication in docker-compose.yml:
-```yaml
-environment:
-  - ENABLE_AUTH=true        # Enable Basic Authentication
-  - AUTH_USERNAME=myuser   # Set username (default: admin)
-  - AUTH_PASSWORD=mypassword # Set password (default: password)
-```
-
-Then access the application with:
-- URL: http://localhost:43000
-- Username: myuser
-- Password: mypassword
-
-If authentication is not enabled (default), the app is accessible without login.
-
-#### GitHub Container Registry (GHCR)
-
-The Docker image is automatically built and pushed to GHCR on every push to the main branch.
-
-**Pull the image:**
-```bash
-docker pull ghcr.io/jswh/modelscope-monitor:latest
-```
-
-**Run with GHCR image:**
-```bash
-docker run -p 3000:3000 -p 8000:8000 -v $(pwd)/data:/app/backend/data ghcr.io/jswh/modelscope-monitor:latest
-```
-
-## API Endpoints
-
-- `GET /api/health` - Health check
-- `GET /api/accounts` - Get all accounts
-- `POST /api/accounts` - Add new account
-- `PUT /api/accounts/:id` - Update account cookies
-- `DELETE /api/accounts/:id` - Delete account
-- `GET /api/accounts/:id/usage` - Get usage data
-- `GET /api/accounts/:id/latest-usage` - Get latest usage data
-- `POST /api/accounts/:id/refresh` - Refresh usage data
-
-## Adding an Account
-
-1. Go to [ModelScope Access Tokens](https://modelscope.cn/my/myaccesstoken)
-2. Open browser developer tools and copy all cookies
-3. In the web dashboard, click "Add Account"
-4. Enter account name and paste the cookies
-5. The system will validate the cookies and start monitoring
-
-## Configuration
-
-### Backend
-
-- Port: 8000 (or set `PORT` environment variable)
-- Data storage: SQLite database in `backend/data/monitor.db`
-- Scheduled updates: Every 5 minutes
-
-### Frontend
-
-- Port: 3000
-- Proxy to backend: `/api` -> `http://localhost:8000`
-
-## Security Notes
-
-- Cookies are stored in the database
-- All API calls are authenticated with the provided cookies
-- The system validates cookies before adding accounts
-- Regular cookie updates are required as they expire
-
-## License
-
-MIT
+MIT License
