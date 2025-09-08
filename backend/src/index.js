@@ -1,8 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const Database = require('./database');
-const ModelScopeAPI = require('./modelscope-api');
 const cron = require('node-cron');
+const { validateAndTestCookies } = require('./middleware');
+const { success, clientError, notFound, asyncHandler } = require('./utils');
+const { accountService, scheduleService } = require('./services');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -11,215 +13,107 @@ app.use(cors());
 app.use(express.json());
 
 const db = new Database();
-const modelscopeAPI = new ModelScopeAPI();
 
-app.post('/api/accounts', async (req, res) => {
-  try {
-    const { name, cookies } = req.body;
+// 账户管理路由
+app.post('/api/accounts', 
+  validateAndTestCookies,
+  asyncHandler(async (req, res) => {
+    const { name } = req.body;
+    const { cookieTestResult } = req;
 
-    if (!name || !cookies) {
-      return res.status(400).json({ error: 'Name and cookies are required' });
+    if (!name) {
+      return clientError(res, 'Name is required');
     }
 
-    const validation = modelscopeAPI.validateCookies(cookies);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.message });
-    }
+    const account = await accountService.createAccount(name, req.body.cookies, cookieTestResult);
+    success(res, { account });
+  }, 'adding account')
+);
 
-    const testResult = await modelscopeAPI.testCookies(cookies);
-    if (!testResult.valid) {
-      return res.status(400).json({ error: testResult.message });
-    }
+app.get('/api/accounts', 
+  asyncHandler(async (req, res) => {
+    const accounts = await accountService.getAllAccounts();
+    success(res, { accounts });
+  }, 'getting accounts')
+);
 
-    const account = await db.addAccount(name, cookies);
-    
-    if (testResult.valid && testResult.data.success) {
-      // 如果API调用返回了更新后的cookies，更新到数据库
-      if (testResult.data.updatedCookies && testResult.data.updatedCookies !== cookies) {
-        await db.updateAccount(account.id, testResult.data.updatedCookies);
-      }
-      await db.addUsageData(account.id, testResult.data);
-    }
-
-    res.json({ success: true, account });
-  } catch (error) {
-    console.error('Error adding account:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/accounts', async (req, res) => {
-  try {
-    const accounts = await db.getAccounts();
-    res.json({ success: true, accounts });
-  } catch (error) {
-    console.error('Error getting accounts:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/accounts/:id', async (req, res) => {
-  try {
+app.put('/api/accounts/:id', 
+  validateAndTestCookies,
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { cookies } = req.body;
+    const { cookieTestResult } = req;
 
-    if (!cookies) {
-      return res.status(400).json({ error: 'Cookies are required' });
-    }
+    await accountService.updateAccountCookies(parseInt(id), req.body.cookies, cookieTestResult);
+    success(res, { message: 'Account updated successfully' });
+  }, 'updating account')
+);
 
-    const validation = modelscopeAPI.validateCookies(cookies);
-    if (!validation.valid) {
-      return res.status(400).json({ error: validation.message });
-    }
-
-    const testResult = await modelscopeAPI.testCookies(cookies);
-    if (!testResult.valid) {
-      return res.status(400).json({ error: testResult.message });
-    }
-
-    // 先测试原始cookies
-    const testResult = await modelscopeAPI.testCookies(cookies);
-    
-    if (!testResult.valid) {
-      return res.status(400).json({ error: testResult.message });
-    }
-
-    // 如果API调用成功且返回了更新后的cookies，使用更新后的cookies
-    let finalCookies = cookies;
-    if (testResult.valid && testResult.data.success && testResult.data.updatedCookies && testResult.data.updatedCookies !== cookies) {
-      finalCookies = testResult.data.updatedCookies;
-    }
-    
-    await db.updateAccount(id, finalCookies);
-    
-    if (testResult.valid && testResult.data.success) {
-      await db.addUsageData(id, testResult.data);
-    }
-
-    res.json({ success: true, message: 'Account updated successfully' });
-  } catch (error) {
-    console.error('Error updating account:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/accounts/:id', async (req, res) => {
-  try {
+app.delete('/api/accounts/:id', 
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    await db.deleteAccount(id);
-    res.json({ success: true, message: 'Account deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting account:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    await accountService.deleteAccount(parseInt(id));
+    success(res, { message: 'Account deleted successfully' });
+  }, 'deleting account')
+);
 
-app.get('/api/accounts/:id/usage', async (req, res) => {
-  try {
+// 使用数据路由 - 简化为只返回最新数据
+app.get('/api/accounts/:id/usage', 
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { limit } = req.query;
-    const usageData = await db.getUsageData(id, limit ? parseInt(limit) : 100);
-    res.json({ success: true, data: usageData });
-  } catch (error) {
-    console.error('Error getting usage data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    // 由于我们只记录最新数据，这里返回空数组
+    // 客户端应该使用 /latest-usage 端点获取最新数据
+    success(res, { data: [], message: 'Historical usage data is not stored. Use /latest-usage endpoint for current data.' });
+  }, 'getting usage data')
+);
 
-app.get('/api/accounts/:id/latest-usage', async (req, res) => {
-  try {
+app.get('/api/accounts/:id/latest-usage', 
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const latestData = await db.getLatestUsageData(id);
+    const latestData = await accountService.getAccountRateLimitData(parseInt(id));
     if (latestData) {
-      res.json(latestData.rate_limit_data);
+      res.json(latestData);
     } else {
-      res.status(404).json({ success: false, error: 'No usage data found' });
+      notFound(res, 'No usage data found');
     }
-  } catch (error) {
-    console.error('Error getting latest usage data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  }, 'getting latest usage data')
+);
 
-app.post('/api/accounts/:id/refresh', async (req, res) => {
-  try {
+app.post('/api/accounts/:id/refresh', 
+  asyncHandler(async (req, res) => {
     const { id } = req.params;
     
-    const account = await db.getAccounts().then(accounts => 
-      accounts.find(acc => acc.id === parseInt(id))
-    );
-    
+    const account = await accountService.getAccountById(parseInt(id));
     if (!account) {
-      return res.status(404).json({ error: 'Account not found' });
+      return notFound(res, 'Account not found');
     }
 
-    const result = await modelscopeAPI.getRateLimit(account.cookies);
+    const result = await accountService.refreshAccountUsage(parseInt(id), account.cookies);
     
     if (result.success) {
-      // 如果API调用返回了更新后的cookies，更新到数据库
-      if (result.updatedCookies && result.updatedCookies !== account.cookies) {
-        await db.updateAccount(id, result.updatedCookies);
-      }
-      await db.addUsageData(id, result);
-      res.json({ success: true, data: result });
+      success(res, { data: result });
     } else {
-      // 即使出错，如果有更新后的cookies也要更新数据库
-      if (result.updatedCookies && result.updatedCookies !== account.cookies) {
-        await db.updateAccount(id, result.updatedCookies);
-      }
-      res.status(400).json({ success: false, error: result.error });
+      clientError(res, result.error);
     }
-  } catch (error) {
-    console.error('Error refreshing usage data:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  }, 'refreshing usage data')
+);
 
+// 健康检查路由
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, message: 'ModelScope Monitor API is running' });
+  success(res, { message: 'ModelScope Monitor API is running' });
 });
 
-cron.schedule('*/5 * * * *', async () => {
-  console.log('Running scheduled usage data update...');
-  
-  try {
-    const accounts = await db.getAccounts();
-    
-    for (const account of accounts) {
-      try {
-        const result = await modelscopeAPI.getRateLimit(account.cookies);
-        
-        if (result.success) {
-          // 如果API调用返回了更新后的cookies，更新到数据库
-          if (result.updatedCookies && result.updatedCookies !== account.cookies) {
-            await db.updateAccount(account.id, result.updatedCookies);
-            console.log(`Updated cookies for account: ${account.name}`);
-          }
-          await db.addUsageData(account.id, result);
-          console.log(`Updated usage data for account: ${account.name}`);
-        } else {
-          // 即使出错，如果有更新后的cookies也要更新数据库
-          if (result.updatedCookies && result.updatedCookies !== account.cookies) {
-            await db.updateAccount(account.id, result.updatedCookies);
-            console.log(`Updated cookies for account (with error): ${account.name}`);
-          }
-          console.error(`Failed to update usage data for account ${account.name}: ${result.error}`);
-        }
-      } catch (error) {
-        console.error(`Error updating account ${account.name}:`, error.message);
-      }
-    }
-  } catch (error) {
-    console.error('Error in scheduled update:', error);
-  }
-});
+// 创建定时任务
+const stopSchedule = scheduleService.createUsageUpdateSchedule();
 
+// 启动服务器
 app.listen(PORT, () => {
-  console.log(`ModelScope Monitor API server running on port ${PORT}`);
+  console.log('ModelScope Monitor API server running on port ' + PORT);
 });
 
+// 优雅关闭处理
 process.on('SIGINT', () => {
   console.log('Shutting down gracefully...');
+  stopSchedule();
   db.close();
   process.exit(0);
 });
