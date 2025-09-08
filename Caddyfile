@@ -7,10 +7,13 @@
 
 # 监听所有接口的 HTTP 请求
 http:// {
-  # 基本认证（使用正确的 basic_auth 指令）
-  basic_auth {
+  # 根据 ENABLE_AUTH 环境变量决定是否启用认证
+  @auth_enabled expression {env.ENABLE_AUTH} == "true"
+  
+  # 仅在 ENABLE_AUTH=true 时启用基本认证
+  basic_auth @auth_enabled {
     # 使用 bcrypt 哈希的密码
-    # 用户名 "jswh"，密码哈希值来自环境变量
+    # 用户名和密码哈希值来自环境变量
     {$AUTH_USERNAME} {$AUTH_PASSWORD}
   }
 

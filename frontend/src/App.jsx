@@ -7,9 +7,44 @@ function App() {
   const [newAccount, setNewAccount] = useState({ name: '', cookies: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [countdown, setCountdown] = useState('5:00');
+
+  const getCountdownColor = () => {
+    const [minutes, seconds] = countdown.split(':').map(Number);
+    const totalSeconds = minutes * 60 + seconds;
+    
+    if (totalSeconds > 120) return 'text-green-600'; // 2分钟以上绿色
+    if (totalSeconds > 60) return 'text-yellow-600';  // 1-2分钟黄色
+    return 'text-red-600'; // 1分钟以内红色
+  };
 
   useEffect(() => {
     fetchAccounts();
+    
+    // 设置5分钟整体刷新定时器
+    const refreshIntervalId = setInterval(() => {
+      window.location.reload();
+    }, 5 * 60 * 1000); // 5分钟 = 300000毫秒
+
+    // 设置1秒倒计时更新定时器
+    const countdownIntervalId = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          return '5:00';
+        }
+        const [minutes, seconds] = prev.split(':').map(Number);
+        const totalSeconds = minutes * 60 + seconds - 1;
+        const newMinutes = Math.floor(totalSeconds / 60);
+        const newSeconds = totalSeconds % 60;
+        return `${newMinutes}:${newSeconds.toString().padStart(2, '0')}`;
+      });
+    }, 1000);
+
+    // 组件卸载时清理定时器
+    return () => {
+      clearInterval(refreshIntervalId);
+      clearInterval(countdownIntervalId);
+    };
   }, []);
 
   const fetchAccounts = async () => {
@@ -63,12 +98,21 @@ function App() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">ModelScope API Monitor</h1>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
-          >
-            Add Account
-          </button>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">页面自动刷新:</span>
+              <span className={`font-medium ${getCountdownColor()}`}>
+                {countdown}
+              </span>
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            </div>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              Add Account
+            </button>
+          </div>
         </div>
 
         {error && (
@@ -87,7 +131,7 @@ function App() {
             />
           ))}
         </div>
-
+        
         {accounts.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No accounts found. Add an account to start monitoring.</p>
@@ -111,11 +155,11 @@ function App() {
 function AccountCard({ account, onDelete, onRefresh }) {
   const [usageData, setUsageData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showRawData, setShowRawData] = useState(false);
 
   useEffect(() => {
     fetchLatestUsage();
   }, [account.id]);
-
   const fetchLatestUsage = async () => {
     try {
       const response = await axios.get(`/api/accounts/${account.id}/latest-usage`);
@@ -151,6 +195,7 @@ function AccountCard({ account, onDelete, onRefresh }) {
         <div>
           <h3 className="text-lg font-semibold text-gray-800">{account.name}</h3>
           <p className="text-sm text-gray-500">ID: {account.id}</p>
+
         </div>
         <div className="flex space-x-2">
           <button
@@ -195,10 +240,18 @@ function AccountCard({ account, onDelete, onRefresh }) {
                     </div>
                   </div>
                   <div className="bg-gray-50 p-3 rounded text-sm">
-                    <p className="text-xs text-gray-500 mb-2">Raw Data:</p>
-                    <pre className="whitespace-pre-wrap text-xs">
-                      {JSON.stringify(usageData.data, null, 2)}
-                    </pre>
+                    <button 
+                      onClick={() => setShowRawData(!showRawData)}
+                      className="flex items-center justify-between w-full text-left text-xs text-gray-500 mb-2 hover:text-gray-700 focus:outline-none"
+                    >
+                      <span>Raw Data:</span>
+                      <span>{showRawData ? '▼' : '▶'}</span>
+                    </button>
+                    {showRawData && (
+                      <pre className="whitespace-pre-wrap text-xs border-t border-gray-200 pt-2">
+                        {JSON.stringify(usageData.data, null, 2)}
+                      </pre>
+                    )}
                   </div>
                 </div>
               )}
